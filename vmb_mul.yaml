@@ -1,0 +1,58 @@
+---
+apiVersion: kubevirt.io/v1alpha3
+kind: VirtualMachineInstance
+metadata:
+  labels:
+    special: vmb
+  name: vmb
+spec:
+  domain:
+    devices:
+      disks:
+      - disk:
+          bus: virtio
+        name: containerdisk
+      - disk:
+          bus: virtio
+        name: cloudinitdisk
+      interfaces:
+      - masquerade: {}
+        name: default
+      - sriov: {}
+        name: sriov-net
+      - sriov: {}
+        name: sriov-net2
+      rng: {}
+    machine:
+      type: ""
+    resources:
+      requests:
+        memory: 1024M
+  networks:
+  - name: default
+    pod: {}
+  - multus:
+      networkName: vms-sriovnetwork
+    name: sriov-net
+  - multus:
+      networkName: vms-sriovnetwork
+    name: sriov-net2
+  terminationGracePeriodSeconds: 0
+  volumes:
+  - containerDisk:
+      image: kubevirt/fedora-cloud-container-disk-demo:latest
+    name: containerdisk
+  - cloudInitNoCloud:
+      userData: |
+        #cloud-config
+        password: fedora
+        chpasswd: { expire: False }
+        bootcmd:
+            - nmcli con add type ethernet con-name eth1 ifname eth1
+            - nmcli con mod eth1 ipv4.addresses 192.168.0.2/24 ipv4.method manual connection.autoconnect-priority 1 ipv6.method ignore
+            - nmcli con up eth1
+            - nmcli con add type ethernet con-name eth2 ifname eth2
+            - nmcli con mod eth2 ipv4.addresses 192.168.1.2/24 ipv4.method manual connection.autoconnect-priority 1 ipv6.method ignore
+            - nmcli con up eth2
+    name: cloudinitdisk
+
