@@ -1,58 +1,69 @@
----
 apiVersion: kubevirt.io/v1alpha3
-kind: VirtualMachineInstance
+kind: VirtualMachine
 metadata:
+  name: vma_mul
   labels:
-    special: vma
-  name: vma
+    app: vma_mul
 spec:
-  domain:
-    devices:
-      disks:
-      - disk:
-          bus: virtio
-        name: containerdisk
-      - disk:
-          bus: virtio
-        name: cloudinitdisk
-      interfaces:
-      - masquerade: {}
-        name: default
-      - sriov: {}
-        name: sriov-net
-      - sriov: {}
-        name: sriov-net2
-      rng: {}
-    machine:
-      type: ""
-    resources:
-      requests:
-        memory: 1024M
-  networks:
-  - name: default
-    pod: {}
-  - multus:
-      networkName: vms-sriovnetwork
-    name: sriov-net
-  - multus:
-      networkName: vms-sriovnetwork
-    name: sriov-net2
-  terminationGracePeriodSeconds: 0
-  volumes:
-  - containerDisk:
-      image: kubevirt/fedora-cloud-container-disk-demo:latest
-    name: containerdisk
-  - cloudInitNoCloud:
-      userData: |
-        #cloud-config
-        password: fedora
-        chpasswd: { expire: False }
-        bootcmd:
-            - nmcli con add type ethernet con-name eth1 ifname eth1
-            - nmcli con mod eth1 ipv4.addresses 192.168.0.1/24 ipv4.method manual connection.autoconnect-priority 1 ipv6.method ignore
-            - nmcli con up eth1
-            - nmcli con add type ethernet con-name eth2 ifname eth2
-            - nmcli con mod eth2 ipv4.addresses 192.168.1.1/24 ipv4.method manual connection.autoconnect-priority 1 ipv6.method ignore
-            - nmcli con up eth2
-    name: cloudinitdisk
-
+  running: false
+  template:
+    metadata:
+    spec:
+      domain:
+        cpu:
+          cores: 1
+          sockets: 1
+          threads: 1
+        devices:
+          disks:
+            - bootOrder: 1
+              disk:
+                bus: virtio
+              name: rootdisk
+            - disk:
+                bus: virtio
+              name: cloudinitdisk
+          interfaces:
+            - masquerade: {}
+              name: nic0
+            - name: nic1
+              sriov: {}
+            - name: nic2
+              sriov: {}
+          networkInterfaceMultiqueue: true
+          rng: {}
+        machine:
+          type: pc-q35-rhel8.1.0
+        resources:
+          requests:
+            memory: 2Gi
+      evictionStrategy: LiveMigrate
+      hostname: vma_mul
+      networks:
+        - name: nic0
+          pod: {}
+        - multus:
+            networkName: vms-sriovnetwork
+          name: nic1
+        - multus:
+            networkName: vms-sriovnetwork
+          name: nic2
+      terminationGracePeriodSeconds: 0
+      volumes:
+        - containerDisk:
+            image: 'quay.io/yadu/kubevirt-centos7:latest'
+          name: rootdisk
+        - cloudInitNoCloud:
+            userData: |-
+              #cloud-config
+              password: centos
+              chpasswd: { expire: False }
+              bootcmd:
+            	  - nmcli con add type ethernet con-name eth1 ifname eth1
+            	  - nmcli con mod eth1 ipv4.addresses 192.168.0.1/24 ipv4.method manual connection.autoconnect-priority 1 ipv6.method ignore
+           	  - nmcli con up eth1
+            	  - nmcli con add type ethernet con-name eth2 ifname eth2
+                  - nmcli con mod eth2 ipv4.addresses 192.168.1.1/24 ipv4.method manual connection.autoconnect-priority 1 ipv6.method ignore
+                  - nmcli con up eth2
+          name: cloudinitdisk
+status: {}
